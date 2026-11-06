@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather Cast | 스마트 글로벌 날씨 서비스</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Pretendard Font & Font Awesome 6 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="weather-sunny">
+  <!-- Dynamic Fullscreen Weather Effects Canvas (Rain, Snow, Sunshine, Clouds) -->
+  <canvas id="weatherFxCanvas" class="weather-fx-canvas"></canvas>
+
+  <!-- Ambient dynamic background glow -->
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+  <div class="weather-atmosphere-overlay" id="atmosphereOverlay"></div>
+
+  <div class="site-wrapper">
+    <!-- Top Navigation Bar -->
+    <header class="navbar">
+      <div class="nav-brand">
+        <div class="brand-logo">
+          <i class="fa-solid fa-cloud-sun"></i>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">Weather Cast</span>
+          <span class="brand-sub">실시간 글로벌 기상 센터</span>
+        </div>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="search-container">
+        <form id="searchForm" class="search-box">
+          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          <input 
+            type="text" 
+            id="cityInput" 
+            placeholder="도시나 지역을 검색하세요 (예: 서울, 강릉, 해운대, 도쿄, 뉴욕...)" 
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <button type="button" id="clearBtn" class="btn-clear" aria-label="입력 지우기">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+          <button type="submit" class="btn-search">검색</button>
+        </form>
+        <button type="button" id="geoBtn" class="btn-geo" title="현재 내 GPS 위치로 날씨 찾기">
+          <i class="fa-solid fa-location-crosshairs"></i>
+          <span>내 위치</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Popular Cities Quick Filter -->
+    <nav class="quick-nav" aria-label="주요 도시 바로가기">
+      <div class="quick-chips-wrapper" id="quickCities">
+        <button type="button" class="chip active" data-city="Seoul" data-name="서울">🇰🇷 서울</button>
+        <button type="button" class="chip" data-city="Busan" data-name="부산">🌊 부산</button>
+        <button type="button" class="chip" data-city="Jeju" data-name="제주">🍊 제주</button>
+        <button type="button" class="chip" data-city="Gangneung" data-name="강릉">🌲 강릉</button>
+        <button type="button" class="chip" data-city="Incheon" data-name="인천">✈️ 인천</button>
+        <button type="button" class="chip" data-city="Daegu" data-name="대구">🍎 대구</button>
+        <button type="button" class="chip" data-city="Tokyo" data-name="도쿄">🗼 도쿄</button>
+        <button type="button" class="chip" data-city="Osaka" data-name="오사카">🏯 오사카</button>
+        <button type="button" class="chip" data-city="New York" data-name="뉴욕">🗽 뉴욕</button>
+        <button type="button" class="chip" data-city="Paris" data-name="파리">🥖 파리</button>
+        <button type="button" class="chip" data-city="London" data-name="런던">🎡 런던</button>
+      </div>
+    </nav>
+
+    <!-- Weather Atmosphere Preview Selector -->
+    <div class="theme-preview-bar">
+      <span class="preview-label"><i class="fa-solid fa-palette"></i> 날씨 분위기 미리보기:</span>
+      <div class="theme-buttons" id="themeButtons">
+        <button type="button" class="theme-btn active" data-theme="weather-sunny"><span class="t-emoji">☀️</span> 맑음</button>
+        <button type="button" class="theme-btn" data-theme="weather-cloudy"><span class="t-emoji">☁️</span> 흐림</button>
+        <button type="button" class="theme-btn" data-theme="weather-rainy"><span class="t-emoji">🌧️</span> 비</button>
+        <button type="button" class="theme-btn" data-theme="weather-snowy"><span class="t-emoji">❄️</span> 눈</button>
+      </div>
+    </div>
+
+    <!-- Feedback States: Loading & Error -->
+    <div id="loading" class="state-card loading-state">
+      <div class="spinner"></div>
+      <p class="state-text">날씨 정보를 불러오는 중...</p>
+    </div>
+
+    <div id="errorState" class="state-card error-state hidden">
+      <div class="error-icon-box">
+        <i class="fa-solid fa-circle-exclamation"></i>
+      </div>
+      <div class="error-info">
+        <h3>날씨 정보를 조회할 수 없습니다</h3>
+        <p id="errorMessage">도시명을 확인 후 다시 검색해 주세요.</p>
+      </div>
+    </div>
+
+    <!-- Main Dashboard Area (PC: 2-Columns, Mobile: 1-Column) -->
+    <main id="weatherContent" class="dashboard-layout hidden">
+      
+      <!-- LEFT COLUMN: Primary Card & 24h Hourly Forecast -->
+      <div class="col-main">
+        <!-- Hero Weather Card with Living Weather Art -->
+        <section class="card hero-card">
+          <!-- Emotional Living Weather Art Banner -->
+          <div class="art-scene-frame">
+            <div id="artScene" class="art-scene scene-sunny">
+              <!-- Celestial Object (Sun / Moon) -->
+              <div class="art-celestial">
+                <div class="sun-body">
+                  <div class="sun-flare"></div>
+                  <div class="sun-core"></div>
+                  <div class="sun-rays"></div>
+                </div>
+                <div class="moon-body">
+                  <div class="moon-crater c1"></div>
+                  <div class="moon-crater c2"></div>
+                </div>
+              </div>
+
+              <!-- Atmospheric Clouds Layer -->
+              <div class="art-clouds">
+                <div class="cloud cloud-1"></div>
+                <div class="cloud cloud-2"></div>
+                <div class="cloud cloud-3"></div>
+              </div>
+
+              <!-- Rain Streams & Ripples Layer -->
+              <div class="art-rain-container">
+                <div class="rain-streak r1"></div>
+                <div class="rain-streak r2"></div>
+                <div class="rain-streak r3"></div>
+                <div class="rain-streak r4"></div>
+                <div class="rain-streak r5"></div>
+                <div class="rain-streak r6"></div>
+                <div class="rain-streak r7"></div>
+                <div class="rain-streak r8"></div>
+              </div>
+
+              <!-- Snow Flurries Layer -->
+              <div class="art-snow-container">
+                <div class="snow-flake s1">❄</div>
+                <div class="snow-flake s2">✦</div>
+                <div class="snow-flake s3">❄</div>
+                <div class="snow-flake s4">✦</div>
+                <div class="snow-flake s5">❄</div>
+                <div class="snow-flake s6">✦</div>
+              </div>
+
+              <!-- Mountain & Hills Landscape SVG Silhouette -->
+              <div class="art-landscape">
+                <svg class="hills-svg" viewBox="0 0 600 130" preserveAspectRatio="none">
+                  <!-- Background Hill -->
+                  <path class="hill-back" d="M0,80 Q140,25 280,75 T560,40 Q585,55 600,65 L600,130 L0,130 Z" />
+                  <!-- Middle Hill with Pine Trees -->
+                  <path class="hill-mid" d="M0,95 Q180,45 360,90 T600,70 L600,130 L0,130 Z" />
+                  <!-- Pine Trees Silhouettes -->
+                  <g class="pine-trees">
+                    <polygon points="90,75 84,95 96,95" />
+                    <polygon points="105,70 98,95 112,95" />
+                    <polygon points="460,65 453,88 467,88" />
+                    <polygon points="475,60 467,88 483,88" />
+                  </g>
+                  <!-- Foreground Hill -->
+                  <path class="hill-front" d="M0,110 Q160,85 320,105 T600,98 L600,130 L0,130 Z" />
+                </svg>
+              </div>
+
+              <!-- Mood Caption Badge -->
+              <div class="art-caption-badge">
+                <i class="fa-solid fa-sparkles"></i>
+                <span id="artCaptionText">따사로운 햇살이 온화하게 감싸는 청명한 날</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="hero-header">
+            <div class="location-badge">
+              <i class="fa-solid fa-location-dot"></i>
+              <div>
+                <h1 id="cityName" class="city-name">서울</h1>
+                <p id="countryName" class="country-name">대한민국</p>
+              </div>
+            </div>
+            <div class="time-meta">
+              <span id="currentTime" class="clock-display">--:--</span>
+              <span class="live-pill"><span class="live-dot"></span> LIVE</span>
+            </div>
+          </div>
+
+          <div class="hero-body">
+            <div class="hero-visual">
+              <div class="weather-icon-combo">
+                <span id="weatherEmoji" class="hero-emoji">☀️</span>
+                <i id="weatherIcon" class="fa-solid fa-sun hero-fa-icon"></i>
+              </div>
+              <div id="weatherDesc" class="weather-status-pill">
+                <span class="desc-emoji">☀️</span> <span>맑음</span>
+              </div>
+            </div>
+
+            <div class="hero-temp-group">
+              <div class="temp-big">
+                <span id="currentTemp">--</span><span class="unit">°</span>
+              </div>
+              <div class="temp-ranges">
+                <div class="range-item">
+                  <span class="range-label">최고</span>
+                  <span id="todayMaxTemp" class="range-val text-max">--°</span>
+                </div>
+                <div class="range-sep">/</div>
+                <div class="range-item">
+                  <span class="range-label">최저</span>
+                  <span id="todayMinTemp" class="range-val text-min">--°</span>
+                </div>
+                <div class="apparent-wrap">
+                  체감 <strong id="apparentTemp">--°</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 24-Hour Hourly Forecast Section -->
+        <section class="card hourly-card">
+          <div class="card-title-bar">
+            <div class="title-left">
+              <i class="fa-regular fa-clock"></i>
+              <span>24시간 시간별 예보</span>
+            </div>
+            <span class="hint-text"><i class="fa-solid fa-arrows-left-right"></i> 좌우로 스크롤하여 확인</span>
+          </div>
+          <div class="hourly-scroll-container" id="hourlyList">
+            <!-- Dynamically populated via JS -->
+          </div>
+        </section>
+      </div>
+
+      <!-- RIGHT COLUMN: Details Metric Grid & 7-Day Forecast -->
+      <div class="col-side">
+        <!-- Weather Highlights Details Grid (2x3 on desktop) -->
+        <section class="details-section">
+          <h2 class="sr-only">상세 기상 지표</h2>
+          <div class="metrics-grid">
+            
+            <!-- Humidity -->
+            <div class="card metric-card">
+              <div class="metric-head">
+                <i class="fa-solid fa-droplet text-blue"></i>
+                <span>습도</span>
+              </div>
+              <div class="metric-body">
+                <span id="humidity" class="metric-num">--%</span>
+              </div>
+              <div class="metric-footer" id="humidityDesc">적정 습도</div>
+            </div>
+
+            <!-- Wind -->
+            <div class="card metric-card">
+              <div class="metric-head">
+                <i class="fa-solid fa-wind text-teal"></i>
+                <span>바람</span>
+              </div>
+              <div class="metric-body">
+                <span id="windSpeed" class="metric-num">-- <small>km/h</small></span>
+              </div>
+              <div class="metric-footer" id="windDesc">산들바람</div>
+            </div>
+
+            <!-- Cloud Cover -->
+            <div class="card metric-card">
+              <div class="metric-head">
+                <i class="fa-solid fa-cloud text-gray"></i>
+                <span>구름양</span>
+              </div>
+              <div class="metric-body">
+                <span id="cloudCover" class="metric-num">--%</span>
+              </div>
+              <div class="metric-footer" id="cloudDesc">맑은 하늘</div>
+            </div>
+
+            <!-- Precipitation -->
+            <div class="card metric-card">
+              <div class="metric-head">
+                <i class="fa-solid fa-cloud-rain text-blue"></i>
+                <span>강수량</span>
+              </div>
+              <div class="metric-body">
+                <span id="precipitation" class="metric-num">-- <small>mm</small></span>
+              </div>
+              <div class="metric-footer" id="precipDesc">비 소식 없음</div>
+            </div>
+
+            <!-- UV Index -->
+            <div class="card metric-card">
+              <div class="metric-head">
+                <i class="fa-solid fa-sun text-yellow"></i>
+                <span>자외선 지수</span>
+              </div>
+              <div class="metric-body">
+                <span id="uvIndex" class="metric-num">--</span>
+              </div>
+              <div class="metric-footer" id="uvDesc">보통</div>
+            </div>
+
+            <!-- Sunrise / Sunset -->
+            <div class="card metric-card">
+              <div class="metric-head">
+                <i class="fa-solid fa-mountain-sun text-orange"></i>
+                <span>일출 / 일몰</span>
+              </div>
+              <div class="metric-body sun-times">
+                <div class="sun-item">
+                  <i class="fa-solid fa-arrow-up"></i>
+                  <span id="sunriseTime">--:--</span>
+                </div>
+                <div class="sun-item">
+                  <i class="fa-solid fa-arrow-down"></i>
+                  <span id="sunsetTime">--:--</span>
+                </div>
+              </div>
+              <div class="metric-footer">현지 시각 기준</div>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- 7-Day Weekly Forecast Card -->
+        <section class="card forecast-card">
+          <div class="card-title-bar">
+            <div class="title-left">
+              <i class="fa-regular fa-calendar-days"></i>
+              <span>주간 7일 날씨 예보</span>
+            </div>
+            <span class="forecast-sub">최저/최고 기온</span>
+          </div>
+          <div class="forecast-list" id="forecastList">
+            <!-- Dynamically populated via JS -->
+          </div>
+        </section>
+      </div>
+
+    </main>
+
+    <!-- Service Footer -->
+    <footer class="service-footer">
+      <div class="footer-content">
+        <p class="data-source">
+          <i class="fa-solid fa-shield-halved"></i> 글로벌 기상 데이터는 
+          <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a>의 공공 기상 인프라 및 WMO 표준 데이터를 기반으로 실시간 제공됩니다.
+        </p>
+        <p class="copyright">Weather Cast &copy; 2026. Free Open Weather Dashboard for PC & Mobile.</p>
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
